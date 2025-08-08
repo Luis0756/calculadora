@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Método da Bissecção</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 400px;
+            margin: auto;
+            box-shadow: 0px 4px 8px rgba(0,0,0,0.2);
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px;
+            width: 80%;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #resultado {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Método da Bissecção</h2>
+    
+    <label>Função (em x):</label><br>
+    <input type="text" id="funcao" value="x**3 - 4*x + 1"><br>
+
+    <label>Limite inferior (a):</label><br>
+    <input type="number" id="a" value="-2"><br>
+
+    <label>Limite superior (b):</label><br>
+    <input type="number" id="b" value="2"><br>
+
+    <label>Tolerância:</label><br>
+    <input type="number" id="tol" value="0.0001" step="0.0001"><br>
+
+    <button onclick="calcular()">Calcular</button>
+
+    <div id="resultado"></div>
+</div>
+
+<script>
+function f(x, funcao) {
+    try {
+        return eval(funcao);
+    } catch {
+        alert("Erro na função. Verifique a sintaxe.");
+        throw new Error();
+    }
+}
+
+function bisseccao(a, b, tol, funcao) {
+    if (f(a, funcao) * f(b, funcao) >= 0) {
+        alert("Erro: f(a) e f(b) devem ter sinais opostos.");
+        return null;
+    }
+
+    let iteracoes = 0;
+    let max_iter = 100;
+
+    while ((b - a) / 2 > tol && iteracoes < max_iter) {
+        let c = (a + b) / 2;
+        if (f(c, funcao) === 0) {
+            return c;
+        } else if (f(a, funcao) * f(c, funcao) < 0) {
+            b = c;
+        } else {
+            a = c;
+        }
+        iteracoes++;
+    }
+    return (a + b) / 2;
+}
+
+function calcular() {
+    let funcao = document.getElementById("funcao").value;
+    let a = parseFloat(document.getElementById("a").value);
+    let b = parseFloat(document.getElementById("b").value);
+    let tol = parseFloat(document.getElementById("tol").value);
+
+    let raiz = bisseccao(a, b, tol, funcao);
+
+    if (raiz !== null) {
+        document.getElementById("resultado").innerText = `Raiz aproximada: ${raiz.toFixed(6)}`;
+    }
+}
+</script>
+
+</body>
+</html>
