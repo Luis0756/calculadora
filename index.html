@@ -1,217 +1,183 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <title>Bissecção — etapas e produtos de Bolzano</title>
-  <style>
-    :root { font-family: Arial, sans-serif; }
-    body { background:#f5f5f5; padding:20px; }
-    .container {
-      background:#fff; padding:20px; border-radius:12px;
-      max-width:1100px; margin:auto; box-shadow:0 4px 12px rgba(0,0,0,.1);
-      display:flex; gap:20px; align-items:flex-start; justify-content:space-between;
-    }
-    .box { width:100%; }
-    h2 { margin:0 0 10px; }
-    label { display:block; text-align:left; margin-top:8px; font-size:14px; }
-    input, button {
-      padding:8px; margin-top:4px; width:100%; box-sizing:border-box;
-      border:1px solid #ddd; border-radius:8px;
-    }
-    .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    button {
-      background:#007bff; color:#fff; border:none; cursor:pointer; margin-top:12px;
-    }
-    button:hover { background:#0056b3; }
-    .result-box { margin-top:12px; font-weight:bold; }
-    .table-wrap { margin-top:12px; max-height:360px; overflow:auto; border:1px solid #eee; border-radius:8px; }
-    table { width:100%; border-collapse:collapse; font-size:13px; }
-    th, td { padding:6px 8px; border-bottom:1px solid #eee; text-align:right; }
-    th { position:sticky; top:0; background:#fafafa; text-align:center; }
-    td:first-child, th:first-child { text-align:center; }
-    .meta { font-size:12px; color:#555; margin-top:6px; }
-    .warn { color:#b44; font-weight:600; }
-  </style>
+<meta charset="UTF-8" />
+<title>Método da Bissecção — Raízes com Etapas</title>
+<style>
+  :root { font-family: Arial, sans-serif; }
+  body { background:#f5f5f5; padding:20px; }
+  .container { background:#fff; padding:20px; border-radius:12px;
+               max-width:1100px; margin:auto; box-shadow:0 4px 12px rgba(0,0,0,.1); }
+  h2 { margin:0 0 10px; }
+  label { display:block; margin-top:8px; font-size:14px; }
+  input, button { padding:8px; margin-top:4px; width:100%; box-sizing:border-box;
+                  border:1px solid #ddd; border-radius:8px; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  button { background:#007bff; color:#fff; border:none; cursor:pointer; margin-top:12px; }
+  button:hover { background:#0056b3; }
+  .result-box { margin-top:12px; font-weight:bold; }
+  .warn { color:#b44; font-weight:600; }
+  .tabs { margin-top:20px; }
+  .tab-buttons { display:flex; gap:8px; margin-bottom:12px; }
+  .tab-buttons button { flex:1; background:#eee; color:#000; border:none; padding:8px; cursor:pointer; border-radius:6px; }
+  .tab-buttons button.active { background:#007bff; color:#fff; }
+  .tab-content { display:none; background:#f9f9f9; padding:12px; border-radius:6px; }
+  .tab-content.active { display:block; }
+  table { width:100%; border-collapse:collapse; margin-top:10px; }
+  th, td { border:1px solid #ccc; padding:6px; text-align:center; }
+</style>
 </head>
 <body>
 
 <div class="container">
-  <!-- BISSECÇÃO CLÁSSICA -->
-  <div class="box">
-    <h2>Método da Bissecção (passo a passo)</h2>
+  <h2>Método da Bissecção</h2>
 
-    <label>Função f(x) <span class="meta">(use Math: ex. <code>sin(x) - x/2</code>)</span></label>
-    <input id="func_bis" value="x^3 - 4*x + 1" />
+  <label>Função f(x)</label>
+  <input id="func" value="Math.sin(x) - x/2" />
 
-    <div class="row">
-      <div>
-        <label>Limite inferior (a)</label>
-        <input type="number" id="a_bis" value="-2" />
-      </div>
-      <div>
-        <label>Limite superior (b)</label>
-        <input type="number" id="b_bis" value="2" />
-      </div>
+  <div class="row">
+    <div>
+      <label>Intervalo mínimo (xmin)</label>
+      <input type="number" id="xmin" value="-10" step="0.1" />
     </div>
-
-    <div class="row">
-      <div>
-        <label>Tolerância (intervalo)</label>
-        <input type="number" id="tol_bis" value="0.0001" step="0.0001" />
-      </div>
-      <div>
-        <label>Máx. iterações</label>
-        <input type="number" id="it_bis" value="100" />
-      </div>
+    <div>
+      <label>Intervalo máximo (xmax)</label>
+      <input type="number" id="xmax" value="10" step="0.1" />
     </div>
-
-    <button onclick="handleBisseccao()">Calcular bissecção</button>
-    <div id="out_bis" class="result-box"></div>
-    <div id="meta_bis" class="meta"></div>
-    <div class="table-wrap" id="tbl_bis"></div>
   </div>
+
+  <div class="row">
+    <div>
+      <label>Passo de varredura (dx)</label>
+      <input type="number" id="step" value="1" step="0.1" />
+    </div>
+    <div>
+      <label>Tolerância (intervalo p/ bissecção)</label>
+      <input type="number" id="tol" value="0.0001" step="0.0001" />
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label>Máx. iterações</label>
+      <input type="number" id="maxit" value="100" />
+    </div>
+  </div>
+
+  <button onclick="findRoots()">Encontrar raízes</button>
+
+  <div id="out" class="result-box"></div>
 </div>
 
 <script>
-/* ===== Util: compila string em função f(x) com Math e suporte a ^ ===== */
 function compileFunction(expr) {
-  const cleaned = String(expr)
-    .replace(/\^/g, '**')        // permite x^2
-    .replace(/(\bMath\.)+/g, 'Math.'); // evita Math.. duplicado
+  const cleaned = String(expr).replace(/\^/g, '**');
   try {
-    // with(Math) permite usar sin, cos, log, etc. diretamente
-    // ATENÇÃO: ainda é código dinâmico — use localmente e com cuidado.
     return new Function('x', `with (Math) { return (${cleaned}); }`);
   } catch (e) {
     throw new Error('Não foi possível interpretar a função. Verifique a sintaxe.');
   }
 }
 
-function fmt(n) {
-  if (!isFinite(n)) return String(n);
-  return Number(n).toFixed(6);
-}
+function fmt(n) { return Number(n).toFixed(6); }
 
-/* ===== Bissecção clássica (critério por |b-a|/2) ===== */
+/* ===== bissecção com registro de etapas ===== */
 function bisseccao(f, a, b, tol = 1e-6, maxIter = 100) {
   let fa = f(a), fb = f(b);
-  if (!isFinite(fa) || !isFinite(fb)) throw new Error('f(a) ou f(b) inválidos.');
-  if (fa * fb >= 0) throw new Error('Não há mudança de sinal em [a,b] (f(a)*f(b) >= 0).');
-
-  const steps = [];
+  if (fa * fb > 0) return {root:null, steps:[]};
   let iter = 0, c, fc;
-
-  while ((b - a) / 2 > tol && iter < maxIter) {
-    c = (a + b) / 2;
+  let steps = [];
+  while ((b - a)/2 > tol && iter < maxIter) {
+    c = (a+b)/2;
     fc = f(c);
-    const width = b - a;
-    const err = width / 2;
-
-    steps.push({
-      iter: iter + 1,
-      a, b, c, fa, fb, fc,
-      prod_ab: fa * fb,
-      prod_am: fa * fc,
-      prod_cb: fc * fb,
-      width, err
-    });
-
-    if (fc === 0) { a = b = c; break; }
-
-    // regra padrão: mantém o subintervalo onde há troca de sinal (Bolzano)
-    if (fa * fc < 0) {
-      b = c; fb = fc;
-    } else {
-      a = c; fa = fc;
-    }
+    steps.push({iter:iter+1, a:a, b:b, c:c, fc:fc});
+    if (fc === 0) break;
+    if (fa*fc < 0) { b=c; fb=fc; } else { a=c; fa=fc; }
     iter++;
   }
-  const raiz = (a + b) / 2;
-  return { raiz, steps, iter: steps.length, stoppedBy: (b - a) / 2 <= tol ? 'tolerância' : 'máx. iterações' };
+  return {root:(a+b)/2, steps:steps};
 }
 
-/* ===== Mesma bissecção, explicitando a decisão via produtos de Bolzano ===== */
-function bisseccaoComProdutos(f, a, b, tol = 1e-6, maxIter = 100) {
-  // idêntica à de cima — diferença é só didática na apresentação
-  return bisseccao(f, a, b, tol, maxIter);
-}
-
-/* ===== Renderização de tabela ===== */
-function renderTable(containerId, steps, mode='bis') {
-  if (!steps?.length) {
-    document.getElementById(containerId).innerHTML = '';
-    return;
-  }
-  const showProducts = (mode !== 'bis') || true; // manter produtos visíveis nos dois
-  const cols = [
-    'Iter','a','b','c','f(a)','f(b)','f(c)','f(a)·f(b)','f(a)·f(c)','f(c)·f(b)','|b-a|','erro=(|b-a|/2)'
-  ];
-  let html = '<table><thead><tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr></thead><tbody>';
-  for (const s of steps) {
-    html += `<tr>
-      <td>${s.iter}</td>
-      <td>${fmt(s.a)}</td>
-      <td>${fmt(s.b)}</td>
-      <td>${fmt(s.c)}</td>
-      <td>${fmt(s.fa)}</td>
-      <td>${fmt(s.fb)}</td>
-      <td>${fmt(s.fc)}</td>
-      <td>${fmt(s.prod_ab)}</td>
-      <td>${fmt(s.prod_am)}</td>
-      <td>${fmt(s.prod_cb)}</td>
-      <td>${fmt(s.width)}</td>
-      <td>${fmt(s.err)}</td>
-    </tr>`;
-  }
-  html += '</tbody></table>';
-  document.getElementById(containerId).innerHTML = html;
-}
-
-/* ===== Handlers ===== */
-function handleBisseccao() {
+function findRoots() {
   try {
-    const f = compileFunction(document.getElementById('func_bis').value);
-    const a = parseFloat(document.getElementById('a_bis').value);
-    const b = parseFloat(document.getElementById('b_bis').value);
-    const tol = parseFloat(document.getElementById('tol_bis').value);
-    const maxIter = parseInt(document.getElementById('it_bis').value, 10);
+    const f = compileFunction(document.getElementById('func').value);
+    const xmin = parseFloat(document.getElementById('xmin').value);
+    const xmax = parseFloat(document.getElementById('xmax').value);
+    const step = parseFloat(document.getElementById('step').value);
+    const tol = parseFloat(document.getElementById('tol').value);
+    const maxit = parseInt(document.getElementById('maxit').value, 10);
 
-    const { raiz, steps, iter, stoppedBy } = bisseccao(f, a, b, tol, maxIter);
+    if (!(isFinite(xmin) && isFinite(xmax) && isFinite(step) && step>0)) throw new Error('Intervalo inválido ou passo não positivo.');
+    if (xmin>=xmax) throw new Error('xmin deve ser < xmax.');
 
-    document.getElementById('out_bis').innerHTML =
-      `Raiz aproximada: <strong>${fmt(raiz)}</strong>`;
-    document.getElementById('meta_bis').innerHTML =
-      `Total de iterações: ${iter} • Parada por: ${stoppedBy}.`;
+    const fzeroTol = Math.max(1e-12,1e-8);
+    const mergeTol = Math.max(tol*10,1e-8);
+    let roots = [];
+    let stepsPerRoot = [];
+    let x = xmin;
 
-    renderTable('tbl_bis', steps, 'bis');
-  } catch (e) {
-    document.getElementById('out_bis').innerHTML = `<span class="warn">${e.message}</span>`;
-    document.getElementById('meta_bis').innerHTML = '';
-    document.getElementById('tbl_bis').innerHTML = '';
-  }
+    while(x < xmax-1e-15){
+      const a = x;
+      const b = Math.min(x+step, xmax);
+      let fa = f(a); if(!isFinite(fa)){x=b; continue;}
+      if(Math.abs(fa)<=fzeroTol){ if(!roots.some(rr=>Math.abs(rr-a)<=mergeTol)){ roots.push(a); stepsPerRoot.push([]); } x=b; continue;}
+      let fb = f(b); if(!isFinite(fb)){x=b; continue;}
+      if(Math.abs(fb)<=fzeroTol){ if(!roots.some(rr=>Math.abs(rr-b)<=mergeTol)){ roots.push(b); stepsPerRoot.push([]); } x=b; continue;}
+      if(fa*fb<0){
+        const res = bisseccao(f,a,b,tol,maxit);
+        if(res.root!==null && isFinite(res.root)){
+          if(!roots.some(rr=>Math.abs(rr-res.root)<=mergeTol)){
+            roots.push(res.root);
+            stepsPerRoot.push(res.steps);
+          }
+        }
+      }
+      x=b;
+    }
+
+    roots.sort((u,v)=>u-v);
+    stepsPerRoot = stepsPerRoot.sort((a,b,i=0)=>roots[i++]-roots[i]);
+    
+    const merged = [];
+    const mergedSteps = [];
+    for(let i=0;i<roots.length;i++){
+      const r = roots[i];
+      const s = stepsPerRoot[i];
+      if(merged.length===0){ merged.push(r); mergedSteps.push(s); }
+      else{
+        const last = merged[merged.length-1];
+        if(Math.abs(r-last)<=mergeTol){ merged[merged.length-1]=(last+r)/2; }
+        else{ merged.push(r); mergedSteps.push(s); }
+      }
+    }
+
+    if(merged.length===0){ document.getElementById('out').innerHTML="<span class='warn'>Nenhuma raiz encontrada no intervalo.</span>"; return; }
+
+    // ===== criar tabs =====
+    let html = `<div class="tabs">`;
+    html += `<div class="tab-buttons">`;
+    merged.forEach((r,i)=>{ html += `<button onclick="showTab(${i})" id="tabbtn${i}" ${i===0?'class="active"':''}>Raiz ${i+1}: ${fmt(r)}</button>`; });
+    html += `</div>`;
+    merged.forEach((r,i)=>{
+      html += `<div class="tab-content ${i===0?'active':''}" id="tab${i}">`;
+      html += `<table><tr><th>Iter</th><th>a</th><th>b</th><th>c</th><th>f(c)</th></tr>`;
+      const steps = stepsPerRoot[i];
+      if(steps.length===0){ html += `<tr><td colspan="5">Raiz encontrada nos extremos do subintervalo.</td></tr>`; }
+      steps.forEach(s=>{
+        html += `<tr><td>${s.iter}</td><td>${fmt(s.a)}</td><td>${fmt(s.b)}</td><td>${fmt(s.c)}</td><td>${fmt(s.fc)}</td></tr>`;
+      });
+      html += `</table></div>`;
+    });
+    html += `</div>`;
+    document.getElementById('out').innerHTML = html;
+  } catch(e){ document.getElementById('out').innerHTML=`<span class='warn'>${e.message}</span>`; }
 }
 
-function handleBolzano() {
-  try {
-    const f = compileFunction(document.getElementById('func_bol').value);
-    const a = parseFloat(document.getElementById('a_bol').value);
-    const b = parseFloat(document.getElementById('b_bol').value);
-    const tol = parseFloat(document.getElementById('tol_bol').value);
-    const maxIter = parseInt(document.getElementById('it_bol').value, 10);
-
-    const { raiz, steps, iter, stoppedBy } = bisseccaoComProdutos(f, a, b, tol, maxIter);
-
-    document.getElementById('out_bol').innerHTML =
-      `Raiz aproximada: <strong>${fmt(raiz)}</strong>`;
-    document.getElementById('meta_bol').innerHTML =
-      `Total de iterações: ${iter} • Decisão sempre por produtos de Bolzano (sinal oposto) • Parada por: ${stoppedBy}.`;
-
-    renderTable('tbl_bol', steps, 'bol');
-  } catch (e) {
-    document.getElementById('out_bol').innerHTML = `<span class="warn">${e.message}</span>`;
-    document.getElementById('meta_bol').innerHTML = '';
-    document.getElementById('tbl_bol').innerHTML = '';
-  }
+// ===== controle de tabs =====
+function showTab(i){
+  const tabs = document.querySelectorAll('.tab-content');
+  const buttons = document.querySelectorAll('.tab-buttons button');
+  tabs.forEach((t,j)=>{ t.classList.toggle('active', j===i); buttons[j].classList.toggle('active', j===i); });
 }
 </script>
 </body>

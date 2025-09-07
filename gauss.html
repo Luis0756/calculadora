@@ -15,7 +15,7 @@
     button:hover { background:#0056b3; }
     h2, h3 { margin-top:0; }
     .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-    .tables { display:grid; grid-template-columns:1fr; gap:16px; margin-top:16px; }
+    .tables { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
     .table-wrap { border:1px solid #eee; border-radius:8px; overflow:auto; max-height:380px; }
     table { width:100%; border-collapse:collapse; font-size:13px; }
     th, td { padding:6px 8px; border-bottom:1px solid #eee; text-align:right; }
@@ -24,6 +24,7 @@
     .result { font-weight:600; margin-top:10px; }
     .warn { color:#b44; font-weight:600; }
     code { background:#f2f4f7; padding:2px 6px; border-radius:6px; }
+    .highlight { background:#ffeb99; }
   </style>
 </head>
 <body>
@@ -68,203 +69,81 @@
 </div>
 
 <script>
-function parseMatriz(text) {
-  const M = text.trim().split('\n').map(l =>
-    l.trim().split(/\s+/).map(Number)
-  );
-  if (!M.length || !M[0].length) throw new Error('Matriz A vazia ou inválida.');
-  const n = M[0].length;
-  for (const row of M) if (row.length !== n) throw new Error('Todas as linhas de A devem ter o mesmo número de colunas.');
-  return M;
-}
-function parseVetor(text) {
-  const v = text.trim().split(/\s+/).map(Number);
-  if (!v.length) throw new Error('Vetor b vazio ou inválido.');
-  return v;
-}
-function deepCopy(M){ return M.map(r => r.slice()); }
+function resolver() {
+  const prec = parseInt(document.getElementById('prec').value);
+  const eps = parseFloat(document.getElementById('eps').value);
 
-function gaussComPassos(Ain, bin, eps=1e-12) {
-  const A = deepCopy(Ain);
-  const b = bin.slice();
+  const A = document.getElementById('matrizA').value.trim().split('\n').map(row =>
+    row.trim().split(/\s+/).map(Number)
+  );
   const n = A.length;
 
-  if (b.length !== n) throw new Error('Número de linhas de A deve ser igual ao tamanho de b.');
+  const b = document.getElementById('vetorB').value.trim().split(/\s+/).map(Number);
+  if (b.length !== n) { alert("Vetor b deve ter o mesmo número de linhas que A"); return; }
 
-  const elimSteps = [];
-  const backSteps = [];
+  let M = A.map(r => r.slice());
+  let B = b.slice();
 
-  // Eliminação com pivoteamento parcial
-  for (let k = 0; k < n-1; k++) {
-    // busca pivô (máximo em |A[i][k]|, i>=k)
-    let iMax = k;
-    let maxVal = Math.abs(A[k][k]);
-    for (let i = k+1; i < n; i++) {
-      const v = Math.abs(A[i][k]);
-      if (v > maxVal) { maxVal = v; iMax = i; }
-    }
-    // troca de linhas se necessário
-    if (iMax !== k) {
-      [A[k], A[iMax]] = [A[iMax], A[k]];
-      [b[k], b[iMax]] = [b[iMax], b[k]];
-      elimSteps.push({
-        type: 'swap',
-        k,
-        pivotRow: k,
-        swapWith: iMax,
-        pivotVal: A[k][k]
-      });
-    }
+  const tblElim = document.getElementById('tblElim');
+  const tblBack = document.getElementById('tblBack');
+  tblElim.innerHTML = '';
+  tblBack.innerHTML = '';
 
-    const pivot = A[k][k];
-    if (!isFinite(pivot) || Math.abs(pivot) < eps) {
-      throw new Error(`Pivô ~0 em k=${k}. Sistema singular ou mal condicionado.`);
-    }
-
-    // zera abaixo do pivô
-    for (let i = k+1; i < n; i++) {
-      const m = A[i][k] / pivot;
-      if (Math.abs(m) < eps) {
-        // multiplicador praticamente zero — ainda registramos
-        elimSteps.push({
-          type: 'elim',
-          k, pivotRow: k, targetRow: i,
-          multiplier: m,
-          newRow: A[i].slice(),
-          newBi: b[i],
-          opNote: 'm≈0 (sem alteração relevante)'
-        });
-        continue;
+  function criarTabela(mat, vec, highlightRow=-1, pivotCol=-1, factors=[]) {
+    let html = '<table><tr><th>i</th>' + mat[0].map((_,j) => 'A['+j+']').join('') + '<th>b</th></tr>';
+    for (let i = 0; i < mat.length; i++) {
+      html += '<tr' + (i===highlightRow ? ' class="highlight"' : '') + '><td>' + i + '</td>';
+      for (let j = 0; j < mat[i].length; j++) {
+        let val = mat[i][j].toFixed(prec);
+        if(i===highlightRow && j===pivotCol) val = '<b>'+val+'</b>';
+        html += '<td>' + val + '</td>';
       }
-      for (let j = k; j < n; j++) A[i][j] -= m * A[k][j];
-      b[i] -= m * b[k];
-
-      elimSteps.push({
-        type: 'elim',
-        k, pivotRow: k, targetRow: i,
-        multiplier: m,
-        newRow: A[i].slice(),
-        newBi: b[i]
-      });
+      let bVal = vec[i].toFixed(prec);
+      if(i===highlightRow && factors[i]!==undefined) bVal += ' ('+factors[i].toFixed(prec)+')';
+      html += '<td>' + bVal + '</td></tr>';
     }
+    html += '</table>';
+    return html;
+  }
+
+  // Passo inicial
+  tblElim.innerHTML += criarTabela(M,B) + '<br>';
+
+  for (let k = 0; k < n-1; k++) {
+    if (Math.abs(M[k][k]) < eps) {
+      alert(`Pivô nulo ou muito próximo de zero na linha ${k}`);
+      return;
+    }
+
+    const factors = Array(n).fill(undefined);
+    for (let i = k+1; i < n; i++) {
+      const factor = M[i][k] / M[k][k];
+      factors[i] = factor;
+      for (let j = k; j < n; j++) M[i][j] -= factor * M[k][j];
+      B[i] -= factor * B[k];
+    }
+    tblElim.innerHTML += criarTabela(M,B,k,k,factors) + '<br>';
   }
 
   // Substituição regressiva
-  const x = new Array(n).fill(0);
+  let x = new Array(n).fill(0);
   for (let i = n-1; i >= 0; i--) {
-    const aii = A[i][i];
-    if (!isFinite(aii) || Math.abs(aii) < eps) {
-      throw new Error(`Elemento diagonal ~0 em i=${i}. Sistema singular ou mal condicionado.`);
+    let sum = 0;
+    for (let j = i+1; j < n; j++) sum += M[i][j]*x[j];
+    if (Math.abs(M[i][i]) < eps) {
+      alert(`Divisão por zero no passo regressivo linha ${i}`);
+      return;
     }
-    let soma = 0;
-    const terms = [];
-    for (let j = i+1; j < n; j++) {
-      const t = A[i][j] * x[j];
-      soma += t;
-      terms.push({ j, Aij: A[i][j], xj: x[j], prod: t });
-    }
-    const rhs = b[i] - soma;
-    x[i] = rhs / aii;
+    x[i] = (B[i] - sum)/M[i][i];
 
-    backSteps.push({
-      i,
-      aii,
-      terms,     // detalha A[i][j]*x[j]
-      soma,
-      bi: b[i],
-      rhs,
-      xi: x[i]
-    });
+    // Tabela do passo atual
+    const htmlStep = '<table><tr><th>x</th><th>Valor</th></tr>' +
+                     x.map((val,j) => '<tr><td>x['+j+']</td><td>' + val.toFixed(prec) + '</td></tr>').join('') +
+                     '</table><br>';
+    tblBack.innerHTML += htmlStep;
   }
 
-  return { x, elimSteps, backSteps };
-}
-
-function fmt(n, p=6) {
-  if (!isFinite(n)) return String(n);
-  return Number(n).toFixed(p);
-}
-function rowStr(row, p) {
-  return '[' + row.map(v => fmt(v, p)).join(', ') + ']';
-}
-
-function renderElimTable(elimSteps, prec) {
-  if (!elimSteps.length) return '<em>Nenhuma etapa registrada.</em>';
-  let html = '<table><thead><tr>'
-    + '<th>#</th><th>k</th><th>Ação</th><th>Detalhe</th><th>Multiplicador m</th><th>Nova linha R<sub>i</sub></th><th>Novo b<sub>i</sub></th>'
-    + '</tr></thead><tbody>';
-
-  let idx = 1;
-  for (const s of elimSteps) {
-    if (s.type === 'swap') {
-      html += `<tr>
-        <td>${idx++}</td>
-        <td>${s.k}</td>
-        <td>Troca</td>
-        <td>R<sub>${s.pivotRow+1}</sub> ↔ R<sub>${s.swapWith+1}</sub></td>
-        <td>—</td>
-        <td>—</td>
-        <td>—</td>
-      </tr>`;
-    } else {
-      html += `<tr>
-        <td>${idx++}</td>
-        <td>${s.k}</td>
-        <td>Eliminação</td>
-        <td>R<sub>${s.targetRow+1}</sub> ← R<sub>${s.targetRow+1}</sub> − m·R<sub>${s.pivotRow+1}</sub></td>
-        <td>${fmt(s.multiplier, prec)}${s.opNote ? ' · ' + s.opNote : ''}</td>
-        <td style="text-align:left">${rowStr(s.newRow, prec)}</td>
-        <td>${fmt(s.newBi, prec)}</td>
-      </tr>`;
-    }
-  }
-  html += '</tbody></table>';
-  return html;
-}
-
-function renderBackTable(backSteps, prec) {
-  if (!backSteps.length) return '<em>Nenhuma etapa registrada.</em>';
-  let html = '<table><thead><tr>'
-    + '<th>i</th><th>a<sub>ii</sub></th><th>∑ a<sub>ij</sub>x<sub>j</sub></th><th>b<sub>i</sub> − ∑</th><th>x<sub>i</sub></th><th>Termos usados</th>'
-    + '</tr></thead><tbody>';
-
-  for (const s of backSteps) {
-    const termos = s.terms.length
-      ? s.terms.map(t => `a<sub>${s.i+1}${t.j+1}</sub>·x<sub>${t.j+1}</sub>=${fmt(t.prod, prec)} (${fmt(t.Aij,prec)}·${fmt(t.xj,prec)})`).join('<br>')
-      : '—';
-    html += `<tr>
-      <td>${s.i+1}</td>
-      <td>${fmt(s.aii, prec)}</td>
-      <td>${fmt(s.soma, prec)}</td>
-      <td>${fmt(s.rhs, prec)}</td>
-      <td>${fmt(s.xi, prec)}</td>
-      <td style="text-align:left">${termos}</td>
-    </tr>`;
-  }
-  html += '</tbody></table>';
-  return html;
-}
-
-function resolver() {
-  const prec = Math.max(0, Math.min(12, parseInt(document.getElementById('prec').value || '6', 10)));
-  const eps = parseFloat(document.getElementById('eps').value || '1e-12');
-
-  try {
-    const A = parseMatriz(document.getElementById('matrizA').value);
-    const b = parseVetor(document.getElementById('vetorB').value);
-
-    const { x, elimSteps, backSteps } = gaussComPassos(A, b, eps);
-
-    document.getElementById('solucao').innerHTML =
-      'Solução: ' + x.map((v,i) => `<code>x${i+1}=${fmt(v,prec)}</code>`).join(' · ');
-
-    document.getElementById('tblElim').innerHTML = renderElimTable(elimSteps, prec);
-    document.getElementById('tblBack').innerHTML = renderBackTable(backSteps, prec);
-  } catch (e) {
-    document.getElementById('solucao').innerHTML = `<span class="warn">${e.message}</span>`;
-    document.getElementById('tblElim').innerHTML = '';
-    document.getElementById('tblBack').innerHTML = '';
-  }
+  document.getElementById('solucao').innerHTML = 'Solução final: ' + x.map(v => v.toFixed(prec)).join(', ');
 }
 </script>
 
