@@ -1,39 +1,40 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Decomposição LU (A = L·U)</title>
-  <style>
-    body { font-family: Arial, sans-serif; background:#f5f5f5; padding:20px; }
-    .container { background:#fff; padding:20px; border-radius:12px;
-                 max-width:900px; margin:auto; box-shadow:0 4px 12px rgba(0,0,0,.1); }
-    textarea, input, button {
-      width:100%; margin:6px 0; padding:8px; box-sizing:border-box;
-      border-radius:8px; border:1px solid #ccc;
-    }
-    button { background:#007bff; color:#fff; border:none; cursor:pointer; }
-    button:hover { background:#0056b3; }
-    .result { font-weight:600; margin-top:12px; }
-    table { border-collapse:collapse; margin:10px 0; width:auto; font-size:13px; }
-    th, td { border:1px solid #ddd; padding:4px 6px; text-align:right; }
-    th { background:#fafafa; }
-    .matrix-block { margin:12px 0; padding:10px; border:1px solid #ddd; border-radius:6px; background:#fafafa; }
-  </style>
+<meta charset="UTF-8">
+<title>Decomposição LU (Pivotamento Condicional)</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#f5f5f5; padding:20px; }
+  .container { background:#fff; padding:20px; border-radius:12px;
+               max-width:900px; margin:auto; box-shadow:0 4px 12px rgba(0,0,0,.1); }
+  textarea, input, button {
+    width:100%; margin:6px 0; padding:8px; box-sizing:border-box;
+    border-radius:8px; border:1px solid #ccc;
+  }
+  button { background:#007bff; color:#fff; border:none; cursor:pointer; }
+  button:hover { background:#0056b3; }
+  .result { font-weight:600; margin-top:12px; }
+  table { border-collapse:collapse; margin:10px 0; width:auto; font-size:13px; }
+  th, td { border:1px solid #ddd; padding:4px 6px; text-align:right; }
+  th { background:#fafafa; }
+  .matrix-block { margin:12px 0; padding:10px; border:1px solid #ddd; border-radius:6px; background:#fafafa; }
+</style>
 </head>
 <body>
-<label>
 
 <div class="container">
-  <h2>Decomposição LU (A = L·U)</h2>
-  <p>Insira a <strong>matriz A</strong> quadrada. O algoritmo calculará as matrizes <strong>L</strong> e <strong>U</strong>.</p>
+  <h2>Decomposição LU (Pivotamento Condicional)</h2>
+  <p>Insira a <strong>matriz A</strong> quadrada. O algoritmo calculará as matrizes <strong>L</strong> e <strong>U</strong> aplicando pivotamento **somente quando necessário**.</p>
 
   <label>Matriz A:</label>
-  <textarea id="matrizA" rows="5">2 1 -1
--3 -1 2
--2 1 2</textarea>
+  <textarea id="matrizA" rows="5">0 0 1 3 4
+0 2 2 1 1
+2 0 3 2 3
+3 8 1 4 2
+4 1 3 0 5</textarea>
 
-  <!-- <label>Precisão (casas decimais):</label>
-  <input id="prec" type="number" value="2" min="0" max="12"> -->
+  <label>Precisão (casas decimais):</label>
+  <input id="prec" type="number" value="6" min="0" max="12">
 
   <button onclick="resolver()">Executar</button>
 
@@ -42,104 +43,105 @@
 </div>
 
 <script>
-    function parseMatriz(text) {
-        return text.trim().split('\n').map(l => l.trim().split(/\s+/).map(Number));
-    }
-    function identidade(n) {
-        return Array.from({length:n}, (_,i)=>
-            Array.from({length:n}, (_,j)=> i===j ? 1 : 0)
-        );
-    }
-    function deepCopy(M){ return M.map(r=>r.slice()); }
+function parseMatriz(text) {
+  return text.trim().split('\n').map(l => l.trim().split(/\s+/).map(Number));
+}
 
-    function luDecomp(Ain) {
-        const n = Ain.length;
-        const A = deepCopy(Ain);
-        const L = identidade(n);
-        const U = deepCopy(A);
-        const P = identidade(n);
-        const tol = 1e-12; // tolerância para pivô zero
+function identidade(n) {
+  return Array.from({length:n}, (_,i)=>
+    Array.from({length:n}, (_,j)=> i===j ? 1 : 0)
+  );
+}
 
-        for (let k = 0; k < n - 1; k++) {
-            // pivoteamento necessário somente se pivô atual é muito pequeno
-            let pivot = U[k][k];
-            let maxIndex = k;
+function deepCopy(M){ return M.map(r=>r.slice()); }
 
-            // se pivô quase zero, buscar maior elemento absoluto na coluna
-            if (Math.abs(pivot) < tol) {
-            for (let i = k + 1; i < n; i++) {
-                if (Math.abs(U[i][k]) > Math.abs(U[maxIndex][k])) maxIndex = i;
-            }
+function luDecomp(Ain) {
+  const n = Ain.length;
+  const A = deepCopy(Ain);
+  const L = identidade(n);
+  const U = deepCopy(A);
+  const P = identidade(n);
+  const tol = 1e-12;
 
-            if (Math.abs(U[maxIndex][k]) < tol)
-                throw new Error("Pivô muito pequeno, LU falhou mesmo após pivotamento.");
-
-            if (maxIndex !== k) {
-                // trocar linhas em U
-                [U[k], U[maxIndex]] = [U[maxIndex], U[k]];
-                // ajustar L
-                for (let j = 0; j < k; j++) [L[k][j], L[maxIndex][j]] = [L[maxIndex][j], L[k][j]];
-                // ajustar P
-                [P[k], P[maxIndex]] = [P[maxIndex], P[k]];
-            }
-            }
-
-            // atualizar L e U
-            for (let i = k + 1; i < n; i++) {
-            const m = U[i][k] / U[k][k];
-            L[i][k] = m;
-            for (let j = k; j < n; j++) {
-                U[i][j] -= m * U[k][j];
-            }
-            }
+  for (let k = 0; k < n - 1; k++) {
+    // Se o pivô for zero, procurar a primeira linha abaixo com valor não-zero
+    if (Math.abs(U[k][k]) < tol) {
+      let swapRow = -1;
+      for (let i = k + 1; i < n; i++) {
+        if (Math.abs(U[i][k]) > tol) {
+          swapRow = i;
+          break;
         }
+      }
+      if (swapRow === -1) {
+        throw new Error("Não há pivô não-zero disponível, LU falhou.");
+      }
 
-        return { L, U, P };
-        }
-
-
-    function multiplica(A,B) {
-    const n = A.length, m = B[0].length, p = B.length;
-    const C = Array.from({length:n}, ()=>Array(m).fill(0));
-    for (let i=0;i<n;i++) {
-        for (let j=0;j<m;j++) {
-        for (let k=0;k<p;k++) C[i][j]+=A[i][k]*B[k][j];
-        }
-    }
-    return C;
+      // Trocar linhas U
+      [U[k], U[swapRow]] = [U[swapRow], U[k]];
+      // Ajustar L para colunas anteriores
+      for (let j = 0; j < k; j++) [L[k][j], L[swapRow][j]] = [L[swapRow][j], L[k][j]];
+      // Ajustar P
+      [P[k], P[swapRow]] = [P[swapRow], P[k]];
     }
 
-    function fmt(n, p){ return Number(n).toFixed(p); }
-    function renderMatriz(M, prec, name){
-    let html = `<div class="matrix-block"><strong>${name}</strong><br><table><tbody>`;
-    for (const r of M){
-        html+="<tr>"+r.map(v=>`<td>${fmt(v,prec)}</td>`).join("")+"</tr>";
+    // Atualizar L e U
+    for (let i = k + 1; i < n; i++) {
+      const m = U[i][k] / U[k][k];
+      L[i][k] = m;
+      for (let j = k; j < n; j++) {
+        U[i][j] -= m * U[k][j];
+      }
     }
-    html+="</tbody></table></div>";
-    return html;
+  }
+
+  return { L, U, P };
+}
+
+
+function multiplica(A,B) {
+  const n = A.length, m = B[0].length, p = B.length;
+  const C = Array.from({length:n}, ()=>Array(m).fill(0));
+  for (let i=0;i<n;i++) {
+    for (let j=0;j<m;j++) {
+      for (let k=0;k<p;k++) C[i][j]+=A[i][k]*B[k][j];
     }
+  }
+  return C;
+}
 
-    function resolver(){
-    const prec = 2 // parseInt(document.getElementById("prec").value||"6");
-    try{
-        const A = parseMatriz(document.getElementById("matrizA").value);
-        const {L,U,P} = luDecomp(A);
-        const PA = multiplica(P,A);
-        const LU = multiplica(L,U);
+function fmt(n, p){ return Number(n).toFixed(p); }
 
-        let html = renderMatriz(P, prec, "Matriz P (Permutação Automática)");
-        html += renderMatriz(L, prec, "Matriz L");
-        html += renderMatriz(U, prec, "Matriz U");
-        html += renderMatriz(PA, prec, "P · A (≈ L · U)");
-        html += renderMatriz(LU, prec, "L · U");
+function renderMatriz(M, prec, name){
+  let html = `<div class="matrix-block"><strong>${name}</strong><br><table><tbody>`;
+  for (const r of M){
+    html+="<tr>"+r.map(v=>`<td>${fmt(v,prec)}</td>`).join("")+"</tr>";
+  }
+  html+="</tbody></table></div>";
+  return html;
+}
 
-        document.getElementById("matrizes").innerHTML = html;
-        document.getElementById("solucao").innerHTML = "Decomposição LU com pivoteamento automático realizada com sucesso!";
-        }catch(e){
-            document.getElementById("solucao").innerHTML = `<span style="color:red">${e.message}</span>`;
-            document.getElementById("matrizes").innerHTML="";
-        }
-    }
+function resolver(){
+  const prec = parseInt(document.getElementById("prec").value||"6");
+  try{
+    const A = parseMatriz(document.getElementById("matrizA").value);
+    const {L,U,P} = luDecomp(A);
+    const PA = multiplica(P,A);
+    const LU = multiplica(L,U);
+
+    let html = renderMatriz(P, prec, "Matriz P (Permutação Condicional)");
+    html += renderMatriz(L, prec, "Matriz L");
+    html += renderMatriz(U, prec, "Matriz U");
+    html += renderMatriz(PA, prec, "P · A (≈ L · U)");
+    html += renderMatriz(LU, prec, "L · U");
+
+    document.getElementById("matrizes").innerHTML = html;
+    document.getElementById("solucao").innerHTML = "Decomposição LU com pivotamento condicional realizada com sucesso!";
+  }catch(e){
+    document.getElementById("solucao").innerHTML = `<span style="color:red">${e.message}</span>`;
+    document.getElementById("matrizes").innerHTML="";
+  }
+}
 </script>
 
 </body>

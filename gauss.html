@@ -110,17 +110,26 @@ function resolver() {
   tblElim.innerHTML += criarTabela(M,B) + '<br>';
 
   for (let k = 0; k < n-1; k++) {
-    if (Math.abs(M[k][k]) < eps) {
-      alert(`Pivô nulo ou muito próximo de zero na linha ${k}`);
-      return;
+    // Pivoteamento parcial
+    let maxRow = k;
+    for (let i = k+1; i < n; i++) {
+        if (Math.abs(M[i][k]) > Math.abs(M[maxRow][k])) maxRow = i;
+    }
+    if (Math.abs(M[maxRow][k]) < eps) {
+        alert(`Pivô nulo ou muito próximo de zero na coluna ${k}`);
+        return;
+    }
+    if (maxRow !== k) {
+        [M[k], M[maxRow]] = [M[maxRow], M[k]];
+        [B[k], B[maxRow]] = [B[maxRow], B[k]];
     }
 
     const factors = Array(n).fill(undefined);
     for (let i = k+1; i < n; i++) {
-      const factor = M[i][k] / M[k][k];
-      factors[i] = factor;
-      for (let j = k; j < n; j++) M[i][j] -= factor * M[k][j];
-      B[i] -= factor * B[k];
+        const factor = M[i][k] / M[k][k];
+        factors[i] = factor;
+        for (let j = k; j < n; j++) M[i][j] -= factor * M[k][j];
+        B[i] -= factor * B[k];
     }
     tblElim.innerHTML += criarTabela(M,B,k,k,factors) + '<br>';
   }
